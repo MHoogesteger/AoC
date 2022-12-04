@@ -4,7 +4,6 @@ using CSV
 function calcmaxelf_naive(file)
     m = 0
     open(file,"r") do f
-        line = 0
         cur = 0
         while !eof(f)
             s = replace(readline(f)," " => "")
@@ -62,9 +61,7 @@ end
 function calcmaxelf_eachline(file)
     m = 0
     open(file,"r") do f
-        line = 0
         cur = 0
-        t = 0
         for line in eachline(f)
             if isempty(line)
                 if cur> m
@@ -72,13 +69,113 @@ function calcmaxelf_eachline(file)
                     cur = 0
                 end
             else
-                t = parse(Int,line)
-                cur += t
+                cur += parse(Int,line)
             end
         end
         m
     end
     return m
+end
+
+function calcmaxelf_mmap(file)
+    m_outer = open(file,"r") do f
+        m = 0
+        v = mmap(f,Vector{UInt8})
+        lb = findall(<(0x30),v)
+        
+        if (lb[2]-lb[1])==1
+            lbr = true
+            lbf = @view lb[1:2:end]
+        else
+            lbr = false
+            lbf = lb
+        end
+        lbfa = @view lbf[1:end-1]
+        lbfb = @view lbf[2:end]
+        lbfid = findall(iszero,lbfb.-lbfa.-1 .-lbr)
+        previd = 1
+        st = 1
+        for id in lbfid
+            lbids = lbf[previd:id]
+            cur = 0
+            for lid in lbids
+                cur += quickparse(v[st:lid-lbr])
+                st = lid+1+lbr
+            end
+            if m<cur
+                m=cur
+            end
+            st += (1+lbr)
+            
+            previd = id+2
+        end
+        return m
+    end
+    return m_outer
+end
+
+function calcmaxelf_eachline_iobuf(file)
+    m = 0
+    open(file,"r") do f
+        io = IOBuffer()
+        cur = 0
+        for line in eachline(f)
+            print(io,line)
+            if io.size==0
+                if cur > m
+                    m = cur
+                    cur = 0
+                end
+            else
+                cur += quickparse3(io)
+            end
+            ~ = take!(io)
+        end
+        m
+    end
+    return m
+end
+
+function quickparse(io::IOBuffer)
+    val = 0
+    ind = 1
+    s = Int('0');
+    while ind<=io.size
+        val = val*10 + io.data[ind]-s
+        ind +=1
+    end
+    return val
+end
+
+function quickparse3(io::IOBuffer)
+    return quickparse(io.data,io.size)
+end
+
+function quickparse(v::Vector{UInt8})
+    val = 0
+    s = Int('0');
+    for k in v
+        val = val*10 + k-s
+    end
+    return val
+end
+
+function quickparse(v::Vector{UInt8},size::Int)
+    val = 0
+    s = Int('0');
+    for k in @view v[1:size]
+        val = val*10 + k-s
+    end
+    return val
+end
+
+function quickparse2(io::IOBuffer)
+    val = 0
+    s = Int('0');
+    for (ind,num) in enumerate(Iterators.dropwhile(==(0),reverse(io.data)))
+        val += (num-s)*10^(ind-1)
+    end
+    return val
 end
 
 function calcmaxelf_readlines(file)
@@ -159,61 +256,76 @@ println("Inputdata maximum: $(calcmaxelf_naive("day01_input.txt"))")
 # println()
 # println("Blob results:")
 # println("Testdata maximum: $(calcmaxelf_blob("day01_test.txt"))")
-println("Inputdata maximum: $(calcmaxelf_blob("day01_input.txt"))")
-# # println("Largedata maximum: $(calcmaxelf_blob("day01_large_input.txt"))")
-# println()
-# println("DC results:")
-# println("Testdata maximum: $(calcmaxelf_dc("day01_test.txt"))")
-println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
+# println("Inputdata maximum: $(calcmaxelf_blob("day01_input.txt"))")
+# # # println("Largedata maximum: $(calcmaxelf_blob("day01_large_input.txt"))")
+# # println()
+# # println("DC results:")
+# # println("Testdata maximum: $(calcmaxelf_dc("day01_test.txt"))")
+# println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
+# # # println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
+println()
+println("Eachline results:")
+println("Testdata maximum: $(calcmaxelf_eachline("day01_test.txt"))")
+println("Inputdata maximum: $(calcmaxelf_eachline("day01_input.txt"))")
+# println("Largedata maximum: $(calcmaxelf_eachline("day01_large_input.txt"))")
+println()
+println("Eachline + IOBuffer results:")
+println("Testdata maximum: $(calcmaxelf_eachline_iobuf("day01_test.txt"))")
+println("Inputdata maximum: $(calcmaxelf_eachline_iobuf("day01_input.txt"))")
+# println("Largedata maximum: $(calcmaxelf_eachline_iobuf("day01_large_input.txt"))")
+println()
+println("Mmap results:")
+println("Testdata maximum: $(calcmaxelf_mmap("day01_test.txt"))")
+println("Inputdata maximum: $(calcmaxelf_mmap("day01_input.txt"))")
+# println("Largedata maximum: $(calcmaxelf_eachline_iobuf("day01_large_input.txt"))")
+# # println()
+# # println("Readlines results:")
+# # println("Testdata maximum: $(calcmaxelf_readlines("day01_test.txt"))")
+# # println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
 # # println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
 # println()
-# println("Eachline results:")
-# println("Testdata maximum: $(calcmaxelf_eachline("day01_test.txt"))")
-# println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
-# println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
+# println("CSV results:")
+# println("Testdata maximum: $(calcmaxelf_csv("day01_test.txt"))")
+# # println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
+# # println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
 # println()
-# println("Readlines results:")
-# println("Testdata maximum: $(calcmaxelf_readlines("day01_test.txt"))")
-# println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
-# println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
-println()
-println("CSV results:")
-println("Testdata maximum: $(calcmaxelf_csv("day01_test.txt"))")
-# println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
-# println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
-println()
-println("DLM results:")
-println("Testdata maximum: $(calcmaxelf_dlm("day01_test.txt"))")
-# println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
-# println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
-println()
-println("DLM2 results:")
-println("Testdata maximum: $(calcmaxelf_dlm2("day01_test.txt"))")
+# println("DLM results:")
+# println("Testdata maximum: $(calcmaxelf_dlm("day01_test.txt"))")
+# # println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
+# # println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
+# println()
+# println("DLM2 results:")
+# println("Testdata maximum: $(calcmaxelf_dlm2("day01_test.txt"))")
 # println("Inputdata maximum: $(calcmaxelf_dc("day01_input.txt"))")
 # println("Largedata maximum: $(calcmaxelf_dc("day01_large_input.txt"))")
 
-# @btime calcmaxelf_naive("day01_test.txt")
+@btime calcmaxelf_naive("day01_test.txt")
 # @btime calcmaxelf_blob("day01_test.txt")
 # @btime calcmaxelf_dc("day01_test.txt")
-# @btime calcmaxelf_eachline("day01_test.txt")
+@btime calcmaxelf_eachline("day01_test.txt")
+@btime calcmaxelf_eachline_iobuf("day01_test.txt")
+@btime calcmaxelf_mmap("day01_test.txt")
 # @btime calcmaxelf_readlines("day01_test.txt")
 # @btime calcmaxelf_csv("day01_test.txt")
 # @btime calcmaxelf_dlm("day01_test.txt")
 # @btime calcmaxelf_dlm2("day01_test.txt")
 # println()
-# @btime calcmaxelf_naive("day01_input.txt")
+@btime calcmaxelf_naive("day01_input.txt")
 # @btime calcmaxelf_blob("day01_input.txt")
 # @btime calcmaxelf_dc("day01_input.txt")
-# @btime calcmaxelf_eachline("day01_input.txt")
+@btime calcmaxelf_eachline("day01_input.txt")
+@btime calcmaxelf_eachline_iobuf("day01_input.txt")
+@btime calcmaxelf_mmap("day01_input.txt")
 # @btime calcmaxelf_readlines("day01_input.txt")
 # @btime calcmaxelf_csv("day01_input.txt")
 # @btime calcmaxelf_dlm("day01_input.txt")
 # @btime calcmaxelf_dlm2("day01_input.txt")
 # println()
 # @btime calcmaxelf_naive("day01_large_input.txt")
-# @btime calcmaxelf_blob("day01_large_input.txt")
-# @btime calcmaxelf_dc("day01_large_input.txt")
+# # @btime calcmaxelf_blob("day01_large_input.txt")
+# # @btime calcmaxelf_dc("day01_large_input.txt")
 # @btime calcmaxelf_eachline("day01_large_input.txt")
+# @btime calcmaxelf_eachline_iobuf("day01_large_input.txt")
 # @btime calcmaxelf_readlines("day01_large_input.txt")
 # @btime calcmaxelf_csv("day01_large_input.txt")
 # @btime calcmaxelf_dlm("day01_large_input.txt")
