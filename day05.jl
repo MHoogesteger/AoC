@@ -1,8 +1,8 @@
-function read_start_config(iostream)
+function read_start_config(iostream;padding =1)
     stacks = Vector{Vector{Char}}()
     line = readline(iostream)
     linelength = length(line)
-    num_stacks = Int((linelength+1)/4)
+    num_stacks = Int((linelength+padding)/4)
     for _ = 1:num_stacks
         push!(stacks,Vector{Char}())
     end
@@ -66,16 +66,27 @@ function get_top_crates(stacks)
 end
    
 
-file = "day05_input.txt"
-iostream = open(file)
+file = "day05_large_input.txt"
 
-@show stacks = read_start_config(iostream)
-@show stacks = read_and_apply_moves_9000(iostream,stacks)
-@show topcrates = get_top_crates(stacks)
+function do_9000(file)
+    iostream = open(file)
+    @time stacks = read_start_config(iostream;padding=0)
+    @time stacks = read_and_apply_moves_9000(iostream,stacks)
+    @time topcrates = get_top_crates(stacks)
+    close(iostream)
+    return topcrates
+end
+function do_9001(file)
+    iostream = open(file)
+    @time stacks = read_start_config(iostream;padding=0)
+    @time stacks = read_and_apply_moves_9001(iostream,stacks)
+    @time topcrates = get_top_crates(stacks)
+    close(iostream)
+    return topcrates
+end
 
-close(iostream)
-iostream = open(file)
-@show stacks = read_start_config(iostream)
-@show stacks = read_and_apply_moves_9001(iostream,stacks)
-@show topcrates = get_top_crates(stacks)
-close(iostream)
+@time a = do_9000(file)
+@time b = do_9001(file)
+
+println(a)
+println(b)
